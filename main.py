@@ -25,14 +25,15 @@ async def main():
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         log_line = f"[{timestamp}] {entry}"
 
-        # Erzeuge einen SHA-256 Hash dieser Zeile
+        # Generates SHA-256 Hash
         hash_object = hashlib.sha256(log_line.encode())
         hex_dig = hash_object.hexdigest()
 
-        # Schreibe Log und den dazugehörigen Hash in eine separate Datei
+        # Save log with corresponding hash to a file
         with open("forensic_log.txt", "a") as f:
             f.write(f"{log_line} | HASH: {hex_dig}\n")
 
+    # not currently in use
     async def get_user_details(user_id):
         try:
             full_user = await client(GetFullUserRequest(user_id))
@@ -52,13 +53,10 @@ async def main():
 
         log_content = f"User-ID: {event.sender_id} - Name: {name}\nID: {event.id}\nNEU\nText: {msg_text}"
 
-        # Lokale Sicherung (wie zuvor)
+        # local save to logfile
         generate_forensic_log(f"NEU: {log_content}")
 
-        # Externe Sicherung via E-Mail (Forensischer Zeitstempel)
-        #send_forensic_email(f"TELEGRAM BEWEIS - ID {event.id}", log_content)
-
-        # Nachricht in den Channel schicken
+        # Send log-message to channel
         await client.send_message(Channel_ID, log_content)
         if event.media:
             await client.forward_messages(Channel_ID, event.message)
@@ -72,7 +70,6 @@ async def main():
         log_content = f"User-ID: {event.sender_id} - Name: {name}\nID: {event.id}\nÄNDERUNG/Reaktion!\nText: {msg_text}"
 
         generate_forensic_log(log_content)
-        # send_forensic_email(f"MANIPULATION - ID {event.id}", log_content)
         await client.send_message(Channel_ID, log_content)
 
         if event.media:
@@ -99,27 +96,27 @@ async def main():
 
     async def update_status_msg(client, channel_id):
         old_msg_id = None
-        # load last status ID
+        # load last status ID from file
         if os.path.exists(STATUS_FILE):
             with open(STATUS_FILE, "r") as f:
                 content = f.read().strip()
                 if content:
                     old_msg_id = int(content)
-        # delete old status message if there is oen
+        # delete old status message if there is one
         if old_msg_id:
             try:
                 await client.delete_messages(channel_id, old_msg_id)
             except Exception:
-                pass  # Nachricht wurde vielleicht schon manuell gelöscht
+                pass  # Message does not exist or was already deleted
 
-        # save newest status ID
+        # send status message to channel
         now = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         new_msg = await client.send_message(
             channel_id,
             f"🟢 **System-Check:** Skript ist aktiv.\nLetzter Reconnect: {now}"
         )
 
-        # 4. Neue ID für das nächste Mal speichern
+        # save last status ID to file
         with open(STATUS_FILE, "w") as f:
             f.write(str(new_msg.id))
 
